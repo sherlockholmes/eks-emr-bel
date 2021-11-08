@@ -1,0 +1,49 @@
+aws emr-containers start-job-run \
+  --virtual-cluster-id=6nrtl401z57r6rrqx21xaxro1 \
+  --name=pi-2 \
+  --execution-role-arn=arn:aws:iam::297537572205:role/EMRContainers-JobExecutionRole\
+  --release-label=emr-6.2.0-latest \
+  --job-driver='{
+    "sparkSubmitJobDriver": {
+      "entryPoint": "local:///usr/lib/spark/examples/src/main/python/pi.py",
+      "sparkSubmitParameters": "--conf spark.executor.instances=1 --conf spark.executor.memory=2G --conf spark.executor.cores=1 --conf spark.driver.cores=1"
+    }
+  }'
+  
+  aws eks describe-nodegroup --cluster-name eksbel-dev --nodegroup-name ng-1-workers --query "nodegroup.resources.autoScalingGroups" --output text
+  
+  export ASG_NAME=$(aws eks describe-nodegroup --cluster-name eksbel-dev --nodegroup-name ng-1-workers --query "nodegroup.resources.autoScalingGroups" --output text)
+  
+  aws autoscaling \
+    update-auto-scaling-group \
+    --auto-scaling-group-name ${ASG_NAME} \
+    --min-size 3 \
+    --desired-capacity 3 \
+    --max-size 6
+
+
+aws eks describe-fargate-profile --cluster-name eksbel-dev --fargate-profile-name fp-belemr
+
+aws emr-containers create-virtual-cluster \
+--name emr_eks_fargate_cluster \
+--container-provider '{
+    "id":   "eksbel-dev",
+    "type": "EKS",
+    "info": {
+        "eksInfo": {
+            "namespace": "sparkdev"
+        }
+    }
+}'
+
+aws emr-containers start-job-run \
+  --virtual-cluster-id=mtlb0a4gj69b1xraj282tc6oo \
+  --name=pi-3 \
+  --execution-role-arn=arn:aws:iam::297537572205:role/EMRContainers-JobExecutionRole\
+  --release-label=emr-6.2.0-latest \
+  --job-driver='{
+    "sparkSubmitJobDriver": {
+      "entryPoint": "local:///usr/lib/spark/examples/src/main/python/pi.py",
+      "sparkSubmitParameters": "--conf spark.executor.instances=1 --conf spark.executor.memory=2G --conf spark.executor.cores=1 --conf spark.driver.cores=1"
+    }
+  }'

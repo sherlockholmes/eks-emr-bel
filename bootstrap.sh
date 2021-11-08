@@ -1,16 +1,16 @@
 eksctl create iamidentitymapping \
     --cluster eksbel-dev \
-    --namespace dev \
+    --namespace sparkdev \
     --service-name "emr-containers"
 
 aws emr-containers create-virtual-cluster \
---name emr_eks_cluster \
+--name emr_eks_cluster_fargate \
 --container-provider '{
     "id":   "'"eksbel-dev"'",
     "type": "EKS",
     "info": {
         "eksInfo": {
-            "namespace": "dev"
+            "namespace": "sparkdev"
         }
     }
 }'    

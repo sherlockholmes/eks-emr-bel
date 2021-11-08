@@ -86,6 +86,72 @@ eksctl create cluster -f eksbel.yml
 
 esperar
 
+kubectl create namespace spark
 
+eksctl create iamidentitymapping \
+    --cluster eksbel-dev \
+    --namespace spark \
+    --service-name "emr-containers"
+    
+eksctl utils associate-iam-oidc-provider --cluster eksbel-dev --approve
 
+cat <<EoF > ~/environment/emr-trust-policy.json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "elasticmapreduce.amazonaws.com"
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+EoF
 
+aws iam create-role --role-name EMRContainers-JobExecutionRole --assume-role-policy-document file://emr-trust-policy.json
+
+cat <<EoF > ~/environment/EMRContainers-JobExecutionRole.json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:PutObject",
+                "s3:GetObject",
+                "s3:ListBucket"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "logs:PutLogEvents",
+                "logs:CreateLogStream",
+                "logs:DescribeLogGroups",
+                "logs:DescribeLogStreams"
+            ],
+            "Resource": [
+                "arn:aws:logs:*:*:*"
+            ]
+        }
+    ]
+}  
+EoF
+aws iam put-role-policy --role-name EMRContainers-JobExecutionRole --policy-name EMR-Containers-Job-Execution --policy-document file://~/environment/EMRContainers-JobExecutionRole.json
+
+aws emr-containers update-role-trust-policy --cluster-name eksbel-dev --namespace spark --role-name EMRContainers-JobExecutionRole
+
+aws emr-containers create-virtual-cluster \
+--name eks-bel-dev \
+--container-provider '{
+    "id": "eksbel-dev",
+    "type": "EKS",
+    "info": {
+        "eksInfo": {
+            "namespace": "spark"
+        }
+    }
+}'
